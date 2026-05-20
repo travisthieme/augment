@@ -14,7 +14,7 @@ authors = [
 ]
 dependencies = [
   "astropy>=7",
-  "numpy>=2.3",
+  "numpy>=2.4.6",
   "scipy>=1.15",
   "matplotlib>=3.10",
   "corner>=2.2",
