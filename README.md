@@ -44,7 +44,7 @@ import numpy as np
 from astropy import constants as const
 from astropy import units as u
 
-from augment import Sampler, format_summary
+from augment import Sampler, format_summary_table
 
 
 sampler = Sampler(n_samples=100_000, seed=42)
@@ -82,18 +82,11 @@ out = sampler.run(
     error_budget_against="luminosity",
 )
 
-print(out["summary"]["flux"])
-print(out["summary"]["luminosity"])
-print(out["error_budget"])
-
-print(
-    format_summary(
-        out["summary"]["luminosity"],
-        samples=out["samples"]["luminosity"],
-        target_unit=u.W,
-        positive_only=True,
-    )
-)
+print(format_summary_table(
+    out,
+    keys=("luminosity", "flux"),
+    tablefmt="plain",
+))
 ```
 
 ## How The Sampler Works
