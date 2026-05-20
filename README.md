@@ -49,58 +49,6 @@ To include documentation dependencies during development:
 pip install -e .[dev,docs]
 ```
 
-## Quickstart
-
-```python
-import numpy as np
-from astropy import constants as const
-from astropy import units as u
-
-from augment import Sampler, format_summary_table
-
-
-sampler = Sampler(n_samples=100_000, seed=42)
-
-sampler.add(
-    "temperature",
-    5772 * u.K,
-    upper_error=80 * u.K,
-    lower_error=60 * u.K,
-    lower=0 * u.K,
-)
-
-sampler.add(
-    "radius",
-    1.0 * u.solRad,
-    upper_error=0.08 * u.solRad,
-    lower_error=0.05 * u.solRad,
-    lower=0 * u.solRad,
-)
-
-
-def stefan_boltzmann(temperature, radius):
-    flux = const.sigma_sb * temperature**4
-    luminosity = 4 * np.pi * radius**2 * flux
-
-    return {
-        "flux": flux.to(u.W / u.m**2),
-        "luminosity": luminosity.to(u.W),
-    }
-
-
-out = sampler.run(
-    stefan_boltzmann,
-    return_samples=True,
-    error_budget_against="luminosity",
-)
-
-print(format_summary_table(
-    out,
-    keys=("luminosity", "flux"),
-    tablefmt="plain",
-))
-```
-
 ## How The Sampler Works
 
 `Sampler` stores each uncertain input as a `VariableSpec`. Each variable has a
@@ -156,6 +104,58 @@ This is the percentage of finite samples that were non-positive before any
 positive-only or log-space filtering. It is a diagnostic: if `f` is large, the
 log-space summary is describing only the positive part of the sample
 distribution, not the full distribution.
+
+## Quickstart
+
+```python
+import numpy as np
+from astropy import constants as const
+from astropy import units as u
+
+from augment import Sampler, format_summary_table
+
+
+sampler = Sampler(n_samples=100_000, seed=42)
+
+sampler.add(
+    "temperature",
+    5772 * u.K,
+    upper_error=80 * u.K,
+    lower_error=60 * u.K,
+    lower=0 * u.K,
+)
+
+sampler.add(
+    "radius",
+    1.0 * u.solRad,
+    upper_error=0.08 * u.solRad,
+    lower_error=0.05 * u.solRad,
+    lower=0 * u.solRad,
+)
+
+
+def stefan_boltzmann(temperature, radius):
+    flux = const.sigma_sb * temperature**4
+    luminosity = 4 * np.pi * radius**2 * flux
+
+    return {
+        "flux": flux.to(u.W / u.m**2),
+        "luminosity": luminosity.to(u.W),
+    }
+
+
+out = sampler.run(
+    stefan_boltzmann,
+    return_samples=True,
+    error_budget_against="luminosity",
+)
+
+print(format_summary_table(
+    out,
+    keys=("luminosity", "flux"),
+    tablefmt="plain",
+))
+```
 
 ## Plotting
 
