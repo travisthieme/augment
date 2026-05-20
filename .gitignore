@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+*.egg
+src/augment/_version.py
+
+# Envs
+.venv/
+venv/
+
+# Build
+build/
+dist/
+docs/_build/
+
+# Test/coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
+
+# Tooling
+.ruff_cache/
+
+# OS
+.DS_Store
