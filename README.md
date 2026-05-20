@@ -298,4 +298,4 @@ sphinx-build -b html docs docs/_build/html
 
 ## Acknowledgments
 
-This package was developed with assistance from ChatGPT for code developement, documentation drafting, testing workflows, and package-structure review. Final design decisions, scientific use-cases, validation, and maintenance are the responsibility of the package author.
+This package was built with assistance from ChatGPT for code developement, documentation drafting, testing workflows, and package-structure review. Final design decisions, scientific use-cases, validation, and maintenance are the responsibility of the package author.
