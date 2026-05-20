@@ -39,7 +39,7 @@ dev = [
   "black>=24",
 ]
 docs = [
-  "sphinx>=7",
+  "sphinx>=9.0.4",
   "furo>=2024.1.29",
   "myst-parser>=2",
 ]
