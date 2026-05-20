@@ -8,7 +8,8 @@
 uncertainties through Astropy-unit-aware Monte Carlo simulations.
 
 The name stands for **A**symmetric **U**ncertainty propa**G**ation via
-**M**onte Carlo simulations for **E**rror a**N**alysis with as**T**ropy units.
+**M**onte Carlo simulations for **E**rror a**N**alysis with as**T**ropy units. Please excuse the incredibly ridiculous acronym. The package name was clearly optimized after the science, not before it.
+
 
 ## Features
 
