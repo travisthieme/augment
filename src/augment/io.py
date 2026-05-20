@@ -55,6 +55,7 @@ __all__ = [
     "save_samples_npz",
 ]
 
+
 def _q(val, unit_str: Optional[str]) -> Quantity:
     """
     Internal helper: coerce various inputs into an Astropy `Quantity`.
@@ -96,7 +97,7 @@ def _q(val, unit_str: Optional[str]) -> Quantity:
     if isinstance(val, (int, float)):
         if unit_str is None:
             raise ValueError("Unit string required when passing numeric values.")
-        return (val * u.Unit(unit_str))
+        return val * u.Unit(unit_str)
     if isinstance(val, str):
         # allow "1.23 1 / cm2" — split on first whitespace
         parts = val.strip().split(None, 1)
@@ -107,6 +108,7 @@ def _q(val, unit_str: Optional[str]) -> Quantity:
     if hasattr(val, "unit"):
         return val
     raise TypeError("Unsupported quantity format.")
+
 
 def specs_from_dicts(dicts: List[Dict], *, sampler: Optional[Sampler] = None) -> List[VariableSpec]:
     """
@@ -169,11 +171,23 @@ def specs_from_dicts(dicts: List[Dict], *, sampler: Optional[Sampler] = None) ->
         eu = d.get("error_unit")
 
         central_q = _q(central, cu) if not hasattr(central, "unit") else central
-        upper_q   = _q(upper,   eu if eu is not None else (cu if not frac else None)) if not hasattr(upper, "unit") else upper
-        lower_q   = _q(lower,   eu if eu is not None else (cu if not frac else None)) if not hasattr(lower, "unit") else lower
+        upper_q = (
+            _q(upper, eu if eu is not None else (cu if not frac else None))
+            if not hasattr(upper, "unit")
+            else upper
+        )
+        lower_q = (
+            _q(lower, eu if eu is not None else (cu if not frac else None))
+            if not hasattr(lower, "unit")
+            else lower
+        )
 
-        lower_bq = _q(lower_b, cu) if (lower_b is not None and not hasattr(lower_b, "unit")) else lower_b
-        upper_bq = _q(upper_b, cu) if (upper_b is not None and not hasattr(upper_b, "unit")) else upper_b
+        lower_bq = (
+            _q(lower_b, cu) if (lower_b is not None and not hasattr(lower_b, "unit")) else lower_b
+        )
+        upper_bq = (
+            _q(upper_b, cu) if (upper_b is not None and not hasattr(upper_b, "unit")) else upper_b
+        )
 
         spec = VariableSpec(
             name=name,
@@ -190,8 +204,18 @@ def specs_from_dicts(dicts: List[Dict], *, sampler: Optional[Sampler] = None) ->
         if sampler is not None:
             # Mirror the spec registration on the sampler so downstream `.run(...)`
             # has everything it needs without separate manual `add(...)` calls.
-            sampler.add(name, central_q, upper_error=upper_q, lower_error=lower_q, dist=dist, lower=lower_bq, upper=upper_bq, frac=frac)
+            sampler.add(
+                name,
+                central_q,
+                upper_error=upper_q,
+                lower_error=lower_q,
+                dist=dist,
+                lower=lower_bq,
+                upper=upper_bq,
+                frac=frac,
+            )
     return specs
+
 
 def load_specs_json(path: str, *, sampler: Optional[Sampler] = None) -> List[VariableSpec]:
     """
@@ -224,6 +248,7 @@ def load_specs_json(path: str, *, sampler: Optional[Sampler] = None) -> List[Var
     if not isinstance(data, list):
         raise ValueError("JSON must contain a list of variable dicts.")
     return specs_from_dicts(data, sampler=sampler)
+
 
 def load_specs_csv(path: str, *, sampler: Optional[Sampler] = None) -> List[VariableSpec]:
     """
@@ -259,9 +284,10 @@ def load_specs_csv(path: str, *, sampler: Optional[Sampler] = None) -> List[Vari
         for row in r:
             # Convert "True"/"False" to bool for frac
             if "frac" in row and isinstance(row["frac"], str):
-                row["frac"] = row["frac"].strip().lower() in ("1","true","t","yes","y")
+                row["frac"] = row["frac"].strip().lower() in ("1", "true", "t", "yes", "y")
             rows.append(row)
     return specs_from_dicts(rows, sampler=sampler)
+
 
 def save_summary_csv(summary: Dict[str, Dict[str, Quantity]], path: str) -> None:
     """
@@ -293,6 +319,7 @@ def save_summary_csv(summary: Dict[str, Dict[str, Quantity]], path: str) -> None
       back into Quantities (e.g., split once on whitespace from the right).
     """
     import csv
+
     # Collect all keys present across outputs to make a single header
     keys = set()
     for _, d in summary.items():
@@ -309,6 +336,7 @@ def save_summary_csv(summary: Dict[str, Dict[str, Quantity]], path: str) -> None
                 else:
                     row[k] = str(q)
             w.writerow(row)
+
 
 def save_error_budget_csv(eb: Dict[str, float], path: str) -> None:
     """
@@ -327,11 +355,13 @@ def save_error_budget_csv(eb: Dict[str, float], path: str) -> None:
     - "spearman_rho"
     """
     import csv
+
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["variable", "spearman_rho"])
         for k, v in eb.items():
             w.writerow([k, v])
+
 
 def save_samples_npz(samples: Dict[str, Quantity], path: str) -> None:
     """
@@ -362,10 +392,16 @@ def save_samples_npz(samples: Dict[str, Quantity], path: str) -> None:
         ...           for k, u_str in zip(keys, units)}
     """
     import numpy as np
+
     arrays = {}
     meta = {}
     for k, q in samples.items():
         unit = q.unit if hasattr(q, "unit") else None
         arrays[k] = q.to_value(unit) if unit is not None else np.asarray(q)
         meta[k] = str(unit) if unit is not None else ""
-    np.savez_compressed(path, **arrays, __units__=np.array(list(meta.values()), dtype=object), __keys__=np.array(list(samples.keys()), dtype=object))
+    np.savez_compressed(
+        path,
+        **arrays,
+        __units__=np.array(list(meta.values()), dtype=object),
+        __keys__=np.array(list(samples.keys()), dtype=object),
+    )

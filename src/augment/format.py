@@ -55,6 +55,7 @@ def _fmt_sci(x: float, sigfigs: int = 4) -> str:
     """
     return f"{x:.{sigfigs}e}"
 
+
 def _unit_slash_str(unit: u.UnitBase) -> str:
     """
     Render units with all-negative powers in a "slash" form: e.g., `1 / cm2`.
@@ -91,13 +92,14 @@ def _unit_slash_str(unit: u.UnitBase) -> str:
         return "1 / " + " ".join(parts)
     return unit.to_string()
 
+
 def format_asym(
     central_value: Quantity,
     upper_error: Quantity,
     lower_error: Quantity,
     *,
     sigfigs: int = 4,
-    unit_style: str = "slash"
+    unit_style: str = "slash",
 ) -> str:
     """
     Format an asymmetric value with units: `c (+u, -l) unit`.
@@ -127,29 +129,30 @@ def format_asym(
     - This function is unit-aware and will omit units if the value is dimensionless.
     """
     unit = central_value.unit
-    c  = central_value.to_value(unit)  # keep everything in the same unit for consistent formatting
+    c = central_value.to_value(unit)  # keep everything in the same unit for consistent formatting
     up = upper_error.to_value(unit)
     lo = lower_error.to_value(unit)
-    s  = f"{_fmt_sci(c, sigfigs)} (+{_fmt_sci(up, sigfigs)}, -{_fmt_sci(lo, sigfigs)})"
+    s = f"{_fmt_sci(c, sigfigs)} (+{_fmt_sci(up, sigfigs)}, -{_fmt_sci(lo, sigfigs)})"
     if unit.is_equivalent(u.dimensionless_unscaled):
         return s
     ustr = _unit_slash_str(unit) if unit_style == "slash" else unit.to_string()
     return f"{s} {ustr}"
 
+
 def format_summary(
     entry: dict,
     *,
     logspace: bool = False,
-    samples: Quantity = None,          # REQUIRED when using mask or target_unit
-    positive_only: bool = False,       # only for linear mode
-    mask: np.ndarray = None,           # NEW: ensures consistency with corner
-    target_unit: u.UnitBase = None,    # optional unit conversion before summarizing
-    sigfigs: int = 3,                  # linear mode digits
+    samples: Quantity = None,  # REQUIRED when using mask or target_unit
+    positive_only: bool = False,  # only for linear mode
+    mask: np.ndarray = None,  # NEW: ensures consistency with corner
+    target_unit: u.UnitBase = None,  # optional unit conversion before summarizing
+    sigfigs: int = 3,  # linear mode digits
     unit_style: str = "slash",
-    decimals_value: int = 2,           # log mode digits
-    decimals_error: int = 2,           # log mode digits
-    include_fraction: bool = True,     # fraction of (masked) samples <= 0
-    show_all_excluded: bool=False,
+    decimals_value: int = 2,  # log mode digits
+    decimals_error: int = 2,  # log mode digits
+    include_fraction: bool = True,  # fraction of (masked) samples <= 0
+    show_all_excluded: bool = False,
 ) -> str:
     """
     Format a sampler summary line that matches your plotting conventions.
@@ -201,7 +204,7 @@ def format_summary(
         If True, append the fraction of masked samples that are ≤ 0 as
         `[f: xx.xx%]`. Useful for diagnosing zero-heavy posteriors.
     show_all_excluded : bool, optional
-        If True, the fraction is for all masked values. 
+        If True, the fraction is for all masked values.
         If False, the fraction is for masked values that were <=0.
 
     Returns
@@ -235,7 +238,9 @@ def format_summary(
     # ---- masked/target-unit path (recommended) ----
     if (mask is not None) or (target_unit is not None) or (logspace and samples is not None):
         if samples is None:
-            raise ValueError("format_summary: `samples` is required when using mask/target_unit/logspace=True.")
+            raise ValueError(
+                "format_summary: `samples` is required when using mask/target_unit/logspace=True."
+            )
 
         unit = target_unit or samples.unit
         arr0 = samples.to_value(unit)
@@ -248,7 +253,7 @@ def format_summary(
         if mask is not None:
             if mask.shape != arr0.shape:
                 raise ValueError("format_summary: `mask` must be same shape as `samples`.")
-            applied_mask = (mask & finite0)
+            applied_mask = mask & finite0
             if show_all_excluded:
                 # fraction of finite draws we DROPPED via the mask
                 frac_masked = 100.0 * float(np.sum(finite0 & (~mask))) / den
@@ -279,12 +284,14 @@ def format_summary(
             if positive_only:
                 vv = vv[vv > 0.0]
                 if vv.size == 0:
-                    raise ValueError("No positive samples for linear summary with positive_only=True.")
+                    raise ValueError(
+                        "No positive samples for linear summary with positive_only=True."
+                    )
             q16, q50, q84 = np.percentile(vv, [16.0, 50.0, 84.0])
             center = (q50) * unit
-            minus  = (q50 - q16) * unit
-            plus   = (q84 - q50) * unit
-            base   = format_asym(center, plus, minus, sigfigs=sigfigs, unit_style=unit_style)
+            minus = (q50 - q16) * unit
+            plus = (q84 - q50) * unit
+            base = format_asym(center, plus, minus, sigfigs=sigfigs, unit_style=unit_style)
 
         if include_fraction:
             base += f" [f: {frac_masked:.2f}%]"
@@ -292,10 +299,13 @@ def format_summary(
 
     # ---- legacy linear path (no mask/target_unit) ----
     if not logspace:
-        return format_asym(entry["median"], entry["plus"], entry["minus"],
-                           sigfigs=sigfigs, unit_style=unit_style)
+        return format_asym(
+            entry["median"], entry["plus"], entry["minus"], sigfigs=sigfigs, unit_style=unit_style
+        )
 
-    raise ValueError("format_summary(logspace=True) needs `samples=` (and optionally `mask=`) for consistency.")
+    raise ValueError(
+        "format_summary(logspace=True) needs `samples=` (and optionally `mask=`) for consistency."
+    )
 
 
 def format_summary_table(
@@ -359,8 +369,10 @@ def format_summary_table(
     samples = out.get("samples", {})
 
     def _unit_str(unit, *, logspace=False) -> str:
-        base = "dimensionless" if unit.is_equivalent(u.dimensionless_unscaled) else (
-            _unit_slash_str(unit) if unit_style == "slash" else unit.to_string()
+        base = (
+            "dimensionless"
+            if unit.is_equivalent(u.dimensionless_unscaled)
+            else (_unit_slash_str(unit) if unit_style == "slash" else unit.to_string())
         )
         return f"log10({base})" if logspace else base
 
@@ -378,7 +390,9 @@ def format_summary_table(
         finite = np.isfinite(arr0)
         if mask is not None:
             if mask.shape != arr0.shape:
-                raise ValueError("format_summary_table: `mask` must be same shape as each sample array.")
+                raise ValueError(
+                    "format_summary_table: `mask` must be same shape as each sample array."
+                )
             finite &= mask
         arr = arr0[finite]
         if arr.size == 0:
@@ -473,21 +487,26 @@ def format_summary_table(
         if include_fraction:
             columns.append(("f", "fraction"))
         widths = {
-            field: max(len(header), *(len(row[field]) for row in rows))
-            for header, field in columns
+            field: max(len(header), *(len(row[field]) for row in rows)) for header, field in columns
         }
         lines = [
             "  ".join(
-                f"{header:>{widths[field]}}" if field == "value" and value_align == "right"
-                else f"{header:<{widths[field]}}"
+                (
+                    f"{header:>{widths[field]}}"
+                    if field == "value" and value_align == "right"
+                    else f"{header:<{widths[field]}}"
+                )
                 for header, field in columns
             ),
             "  ".join("-" * widths[field] for _, field in columns),
         ]
         lines.extend(
             "  ".join(
-                f"{row[field]:>{widths[field]}}" if field == "value" and value_align == "right"
-                else f"{row[field]:<{widths[field]}}"
+                (
+                    f"{row[field]:>{widths[field]}}"
+                    if field == "value" and value_align == "right"
+                    else f"{row[field]:<{widths[field]}}"
+                )
                 for _, field in columns
             )
             for row in rows

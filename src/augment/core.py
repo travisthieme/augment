@@ -56,6 +56,7 @@ from astropy.units import Quantity
 
 __all__ = ["VariableSpec", "Sampler", "spearman_r"]
 
+
 @dataclass
 class VariableSpec:
     """
@@ -195,16 +196,18 @@ class Sampler:
         self._vars: Dict[str, VariableSpec] = {}
         self._rng = np.random.default_rng(seed)
 
-    def add(self,
-            name: str,
-            central_value: Quantity,
-            *,
-            upper_error: Quantity,
-            lower_error: Quantity,
-            dist: str = "split_normal",
-            lower: Optional[Quantity] = None,
-            upper: Optional[Quantity] = None,
-            frac: bool = False) -> None:
+    def add(
+        self,
+        name: str,
+        central_value: Quantity,
+        *,
+        upper_error: Quantity,
+        lower_error: Quantity,
+        dist: str = "split_normal",
+        lower: Optional[Quantity] = None,
+        upper: Optional[Quantity] = None,
+        frac: bool = False,
+    ) -> None:
         """
         Register a variable to be sampled. All values must be Quantities.
 
@@ -267,10 +270,10 @@ class Sampler:
         if spec.frac:
             sp = spec.upper_error.to_value(u.dimensionless_unscaled)
             sm = spec.lower_error.to_value(u.dimensionless_unscaled)
-            sigma_plus  = sp * c.to_value(unit)
+            sigma_plus = sp * c.to_value(unit)
             sigma_minus = sm * c.to_value(unit)
         else:
-            sigma_plus  = spec.upper_error.to_value(unit)
+            sigma_plus = spec.upper_error.to_value(unit)
             sigma_minus = spec.lower_error.to_value(unit)
         z = self._rng.standard_normal(self.n_samples)
         sig = np.where(z >= 0.0, sigma_plus, sigma_minus)
@@ -296,8 +299,10 @@ class Sampler:
         c = spec.central_value
         unit = c.unit
         if spec.frac:
-            frac_sigma = 0.5 * (spec.upper_error.to_value(u.dimensionless_unscaled) +
-                                spec.lower_error.to_value(u.dimensionless_unscaled))
+            frac_sigma = 0.5 * (
+                spec.upper_error.to_value(u.dimensionless_unscaled)
+                + spec.lower_error.to_value(u.dimensionless_unscaled)
+            )
             sigma = frac_sigma * c.to_value(unit)
         else:
             sigma = 0.5 * (spec.upper_error.to_value(unit) + spec.lower_error.to_value(unit))
@@ -323,12 +328,16 @@ class Sampler:
         c = spec.central_value
         unit = c.unit
         if spec.frac:
-            frac_sigma = 0.5 * (spec.upper_error.to_value(u.dimensionless_unscaled) +
-                                spec.lower_error.to_value(u.dimensionless_unscaled))
+            frac_sigma = 0.5 * (
+                spec.upper_error.to_value(u.dimensionless_unscaled)
+                + spec.lower_error.to_value(u.dimensionless_unscaled)
+            )
         else:
             # Guard against division by zero with a tiny floor.
             denom = max(c.to_value(unit), 1e-300)
-            frac_sigma = 0.5 * (spec.upper_error.to_value(unit) + spec.lower_error.to_value(unit)) / denom
+            frac_sigma = (
+                0.5 * (spec.upper_error.to_value(unit) + spec.lower_error.to_value(unit)) / denom
+            )
         frac_sigma = max(frac_sigma, 1e-12)
         sigma_ln = np.log1p(frac_sigma)
         mu_ln = np.log(max(c.to_value(unit), 1e-300))
@@ -383,7 +392,9 @@ class Sampler:
         """
         q1, q2 = float(q[0]), float(q[1])
         if not (0.0 <= q1 < q2 <= 100.0):
-            raise ValueError("q must be a pair of percent values in ascending order within [0,100].")
+            raise ValueError(
+                "q must be a pair of percent values in ascending order within [0,100]."
+            )
         return q1, q2
 
     def _summarize_array(self, arr: Quantity, q: Tuple[float, float]) -> Dict[str, Quantity]:
@@ -425,13 +436,14 @@ class Sampler:
             "plus": (hi - med) * arr.unit,
         }
 
-    def run(self,
-            model: Callable[..., Any],
-            *,
-            q: Tuple[float, float] = (16.0, 84.0),
-            return_samples: bool = False,
-            error_budget_against: Optional[str] = None
-            ) -> Dict[str, Any]:
+    def run(
+        self,
+        model: Callable[..., Any],
+        *,
+        q: Tuple[float, float] = (16.0, 84.0),
+        return_samples: bool = False,
+        error_budget_against: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Sample variables and evaluate the model.
 
@@ -520,7 +532,9 @@ class Sampler:
         # Optional rank-correlation error budget vs a specific output
         if error_budget_against is not None:
             if error_budget_against not in outputs:
-                raise KeyError(f"error_budget_against='{error_budget_against}' not in outputs: {list(outputs.keys())}")
+                raise KeyError(
+                    f"error_budget_against='{error_budget_against}' not in outputs: {list(outputs.keys())}"
+                )
             target = outputs[error_budget_against]
             target_vals = target.to_value(target.unit)
             eb: Dict[str, float] = {}

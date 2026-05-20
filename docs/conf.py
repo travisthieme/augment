@@ -1,4 +1,5 @@
 """Sphinx configuration for augment docs."""
+
 from __future__ import annotations
 
 from importlib import metadata

@@ -67,6 +67,7 @@ import numpy as np
 from astropy.units import Quantity
 from astropy import units as u
 
+
 def make_joint_mask(out: Dict, keys: Iterable[str], log_keys: Iterable[str]) -> np.ndarray:
     """
     Build a **joint boolean mask** over the sample index that enforces:
@@ -105,16 +106,23 @@ def make_joint_mask(out: Dict, keys: Iterable[str], log_keys: Iterable[str]) -> 
     for k in keys:
         q: Quantity = out["samples"][k]
         v = q.to_value(q.unit)
-        good = np.isfinite(v)          # finite constraint
+        good = np.isfinite(v)  # finite constraint
         if k in log_set:
-            good &= (v > 0.0)          # positivity for log-variables
+            good &= v > 0.0  # positivity for log-variables
         mask = good if mask is None else (mask & good)
     if mask is None or mask.sum() == 0:
         raise ValueError("No samples left after applying the joint mask.")
     return mask
 
-def make_joint_indices(out: Dict, keys: Iterable[str], log_keys: Iterable[str],
-                       *, max_points: Optional[int] = None, seed: int = 42) -> Tuple[np.ndarray, np.ndarray]:
+
+def make_joint_indices(
+    out: Dict,
+    keys: Iterable[str],
+    log_keys: Iterable[str],
+    *,
+    max_points: Optional[int] = None,
+    seed: int = 42,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Return (mask, idx) where idx may be a subsampled set of mask indices.
 
     Parameters
@@ -147,8 +155,15 @@ def make_joint_indices(out: Dict, keys: Iterable[str], log_keys: Iterable[str],
         idx = rng.choice(idx, size=max_points, replace=False)
     return mask, idx
 
-def set_active_mask(out: Dict, keys: Iterable[str], log_keys: Iterable[str],
-                    *, max_points: Optional[int] = None, seed: int = 42) -> np.ndarray:
+
+def set_active_mask(
+    out: Dict,
+    keys: Iterable[str],
+    log_keys: Iterable[str],
+    *,
+    max_points: Optional[int] = None,
+    seed: int = 42,
+) -> np.ndarray:
     """
     Compute and **store** the active mask (and optional subsample) into `out`.
     Returns the boolean mask (length = nsamples).
@@ -180,8 +195,14 @@ def set_active_mask(out: Dict, keys: Iterable[str], log_keys: Iterable[str],
       that all figures and printed values agree exactly.
     """
     mask, idx = make_joint_indices(out, keys, log_keys, max_points=max_points, seed=seed)
-    out["_active_mask"] = {"mask": mask, "idx": idx, "keys": tuple(keys), "log_keys": tuple(log_keys)}
+    out["_active_mask"] = {
+        "mask": mask,
+        "idx": idx,
+        "keys": tuple(keys),
+        "log_keys": tuple(log_keys),
+    }
     return mask
+
 
 def get_active_mask(out: Dict) -> Optional[np.ndarray]:
     """Return the stored active mask if present, else None.
@@ -198,6 +219,7 @@ def get_active_mask(out: Dict) -> Optional[np.ndarray]:
     """
     info = out.get("_active_mask")
     return None if info is None else info["mask"]
+
 
 def get_active_indices(out: Dict) -> Optional[np.ndarray]:
     """Return the stored active indices (possibly subsampled) if present, else None.
@@ -216,13 +238,17 @@ def get_active_indices(out: Dict) -> Optional[np.ndarray]:
     info = out.get("_active_mask")
     return None if info is None else info["idx"]
 
-def resolve_mask(out: Dict, *,
-                 mask: Optional[np.ndarray] = None,
-                 keys: Optional[Iterable[str]] = None,
-                 log_keys: Optional[Iterable[str]] = None,
-                 default_key: Optional[str] = None,
-                 default_log10: bool = False,
-                 use_active: bool = True) -> np.ndarray:
+
+def resolve_mask(
+    out: Dict,
+    *,
+    mask: Optional[np.ndarray] = None,
+    keys: Optional[Iterable[str]] = None,
+    log_keys: Optional[Iterable[str]] = None,
+    default_key: Optional[str] = None,
+    default_log10: bool = False,
+    use_active: bool = True,
+) -> np.ndarray:
     """
     Resolve which mask to use, following this priority:
       1) Use an explicit `mask` if provided.
@@ -279,6 +305,7 @@ def resolve_mask(out: Dict, *,
         log_keys = keys if default_log10 else ()
     return make_joint_mask(out, keys, log_keys)
 
+
 def summarize_for_plot(
     out: Dict,
     key: str,
@@ -287,7 +314,7 @@ def summarize_for_plot(
     space: str = "log10",
     positive_only: bool = True,
     use_precomputed: bool = True,
-    mask: Optional[np.ndarray] = None,   # <— NEW
+    mask: Optional[np.ndarray] = None,  # <— NEW
 ) -> Dict[str, object]:
     """
     Compute plot-ready **center and asymmetric errors** for a single variable,
@@ -435,60 +462,89 @@ def summarize_for_plot(
         "frac_nonpos": frac_nonpos,
     }
 
-def print_aligned_summaries(out, keys, mask=None, *, lin_sigfigs=4, log_decimals=2, include_fraction=False):
+
+def print_aligned_summaries(
+    out, keys, mask=None, *, lin_sigfigs=4, log_decimals=2, include_fraction=False
+):
     from astropy import units as u
     import numpy as np
 
     rows = []
     # First pass: gather summaries, build linear strings, collect widths for alignment
     for k in keys:
-        m   = mask if mask is not None else resolve_mask(out, default_key=k, default_log10=True, use_active=True)
+        m = (
+            mask
+            if mask is not None
+            else resolve_mask(out, default_key=k, default_log10=True, use_active=True)
+        )
         lin = summarize_for_plot(out, k, space="linear", positive_only=True, mask=m)
-        log = summarize_for_plot(out, k, space="log10",  positive_only=True, mask=m)
+        log = summarize_for_plot(out, k, space="log10", positive_only=True, mask=m)
 
         # linear column (no units)
-        lin_str = (f"{lin['value']:.{lin_sigfigs}e} "
-                   f"(+{lin['err_plus']:.{lin_sigfigs}e}, -{lin['err_minus']:.{lin_sigfigs}e})")
+        lin_str = (
+            f"{lin['value']:.{lin_sigfigs}e} "
+            f"(+{lin['err_plus']:.{lin_sigfigs}e}, -{lin['err_minus']:.{lin_sigfigs}e})"
+        )
 
-        unit_str = "none" if u.dimensionless_unscaled.is_equivalent(log["unit"]) else log["unit"].to_string()
+        unit_str = (
+            "none"
+            if u.dimensionless_unscaled.is_equivalent(log["unit"])
+            else log["unit"].to_string()
+        )
 
         # optional masked ≤0 fraction (of finite draws)
         fmask_str = ""
         if include_fraction:
-            arr0   = out["samples"][k].to_value(out["samples"][k].unit)
+            arr0 = out["samples"][k].to_value(out["samples"][k].unit)
             finite = np.isfinite(arr0)
-            fmask  = 100.0 * np.sum((~m) & finite & (arr0 <= 0.0)) / max(1, np.sum(finite))
+            fmask = 100.0 * np.sum((~m) & finite & (arr0 <= 0.0)) / max(1, np.sum(finite))
             fmask_str = f" | f: {fmask:5.2f}%"
 
-        rows.append({
-            "key": k, "m": m, "lin_str": lin_str, "log": log, "unit_str": unit_str, "fmask_str": fmask_str
-        })
+        rows.append(
+            {
+                "key": k,
+                "m": m,
+                "lin_str": lin_str,
+                "log": log,
+                "unit_str": unit_str,
+                "fmask_str": fmask_str,
+            }
+        )
 
     # Widths for pretty alignment
     name_w = max(len(r["key"]) for r in rows)
-    lin_w  = max(len(r["lin_str"]) for r in rows)
+    lin_w = max(len(r["lin_str"]) for r in rows)
     unit_w = max(len(r["unit_str"]) for r in rows)
 
     # Decimal-alignment widths for LOG column (median, +err, -err)
     def intw_fmt(x, d, signed=False):
         s = f"{x:+.{d}f}" if signed else f"{x:.{d}f}"
-        return len(s.split('.')[0])
-    val_iw = max(intw_fmt(r["log"]["value"],     log_decimals, signed=True)  for r in rows)
-    ep_iw  = max(intw_fmt(r["log"]["err_plus"],  log_decimals, signed=False) for r in rows)
-    em_iw  = max(intw_fmt(r["log"]["err_minus"], log_decimals, signed=False) for r in rows)
+        return len(s.split(".")[0])
+
+    val_iw = max(intw_fmt(r["log"]["value"], log_decimals, signed=True) for r in rows)
+    ep_iw = max(intw_fmt(r["log"]["err_plus"], log_decimals, signed=False) for r in rows)
+    em_iw = max(intw_fmt(r["log"]["err_minus"], log_decimals, signed=False) for r in rows)
 
     # Helpers to align decimal points
-    align_val = lambda x: (lambda s: f"{s.split('.')[0]:>{val_iw}}.{s.split('.')[1]}")(f"{x:+.{log_decimals}f}")
-    align_err = lambda x,w: (lambda s: f"{s.split('.')[0]:>{w}}.{s.split('.')[1]}")(f"{x:.{log_decimals}f}")
+    align_val = lambda x: (lambda s: f"{s.split('.')[0]:>{val_iw}}.{s.split('.')[1]}")(
+        f"{x:+.{log_decimals}f}"
+    )
+    align_err = lambda x, w: (lambda s: f"{s.split('.')[0]:>{w}}.{s.split('.')[1]}")(
+        f"{x:.{log_decimals}f}"
+    )
 
     # Build log strings with aligned decimals, then compute width
     for r in rows:
         log = r["log"]
-        r["log_str"] = (f"{align_val(log['value'])} "
-                        f"(+{align_err(log['err_plus'], ep_iw)}, -{align_err(log['err_minus'], em_iw)})")
+        r["log_str"] = (
+            f"{align_val(log['value'])} "
+            f"(+{align_err(log['err_plus'], ep_iw)}, -{align_err(log['err_minus'], em_iw)})"
+        )
     log_w = max(len(r["log_str"]) for r in rows)
 
     # Print aligned rows
     for r in rows:
-        print(f"{r['key']:<{name_w}} : {r['lin_str']:<{lin_w}} | "
-              f"{r['log_str']:<{log_w}} [units: {r['unit_str']:<{unit_w}}]{r['fmask_str']}")
+        print(
+            f"{r['key']:<{name_w}} : {r['lin_str']:<{lin_w}} | "
+            f"{r['log_str']:<{log_w}} [units: {r['unit_str']:<{unit_w}}]{r['fmask_str']}"
+        )

@@ -47,6 +47,7 @@ def _as_vals(arr: Quantity):
     vals = arr.to_value(unit) if unit is not None else np.asarray(arr)
     return vals, unit
 
+
 def _unit_slash_str(unit):
     """
     Best-effort 'slash' unit string for inverse-type units (e.g., '1 / cm2').
@@ -64,12 +65,13 @@ def _unit_slash_str(unit):
         return "1 / " + " ".join(parts)
     return unit.to_string()
 
+
 def plot_posterior(
     out,
     *,
     key: str,
     log10: bool = True,
-    kde: bool = False,                         # NEW: single API switch
+    kde: bool = False,  # NEW: single API switch
     # mask handling (consistent with corner)
     mask: Optional[np.ndarray] = None,
     keys: Optional[Tuple[str, ...]] = None,
@@ -77,10 +79,10 @@ def plot_posterior(
     # viz controls
     ax=None,
     bins: int = 200,
-    smooth_sigma: Optional[float] = None,      # used when kde=True
+    smooth_sigma: Optional[float] = None,  # used when kde=True
     # ETI / HDI shading
     eti: Optional[Tuple[float, ...]] = (0.68, 0.95),
-    hdi: Optional[Tuple[float, ...]] = None,   # back-compat; takes precedence if given
+    hdi: Optional[Tuple[float, ...]] = None,  # back-compat; takes precedence if given
     eti_color: str = "tab:blue",
     eti_alpha_range: Tuple[float, float] = (0.6, 0.2),  # smallest→largest interval alpha
     # labeling / titles
@@ -94,7 +96,7 @@ def plot_posterior(
     tick_width: float = 1.6,
     spine_linewidth: float = 1.6,
     bold_labels: bool = True,
-    show_all_ticklabels: bool = True,          # API symmetry
+    show_all_ticklabels: bool = True,  # API symmetry
     ymin_zero: bool = True,
     show_legend: bool = True,
 ):
@@ -209,7 +211,7 @@ def plot_posterior(
     hist, edges = np.histogram(x, bins=int(bins), density=True)
     ctr = 0.5 * (edges[:-1] + edges[1:])
     widths = np.diff(edges)
-    
+
     # Optional Gaussian smoothing (still only affects the curve)
     if kde and (smooth_sigma is not None) and (smooth_sigma > 0):
         half = int(np.ceil(4 * smooth_sigma))
@@ -217,14 +219,14 @@ def plot_posterior(
         kern = np.exp(-0.5 * (kx / smooth_sigma) ** 2)
         kern /= kern.sum()
         hist = np.convolve(hist, kern, mode="same")
-    
+
     # ---- Quantiles from RAW samples (consistent with corner & format_summary) ----
     def _percentiles(arr, ps=(16.0, 50.0, 84.0), method="linear"):
         try:
             return np.percentile(arr, ps, method=method)  # numpy >= 1.22
         except TypeError:
-            return np.percentile(arr, ps)                 # fallback
-    
+            return np.percentile(arr, ps)  # fallback
+
     q16, q50, q84 = _percentiles(x, (16.0, 50.0, 84.0), method="linear")
 
     def _latex_unit_str(unit, label_override=None) -> str:
@@ -248,7 +250,7 @@ def plot_posterior(
                 text = base.to_string()
             text = text.strip("$")
             if text.startswith(r"\mathrm{") and text.endswith("}"):
-                text = text[len(r"\mathrm{"):-1]
+                text = text[len(r"\mathrm{") : -1]
             return text
 
         bases = getattr(unit, "bases", None)
@@ -259,7 +261,7 @@ def plot_posterior(
             except Exception:
                 text = unit.to_string()
             if text.startswith(r"\mathrm{") and text.endswith("}"):
-                text = text[len(r"\mathrm{"):-1]
+                text = text[len(r"\mathrm{") : -1]
             return rf"\mathrm{{{text}}}"
 
         parts = []
@@ -293,12 +295,14 @@ def plot_posterior(
         if unit_text:
             return (
                 rf"\mathbf{{{pretty}}}\,({unit_text})"
-                if bold_labels else
-                rf"{pretty}\,({unit_text})"
+                if bold_labels
+                else rf"{pretty}\,({unit_text})"
             )
         return rf"\mathbf{{{pretty}}}" if bold_labels else pretty
 
-    def _format_quantile_title(value: float, plus: float, minus: float, fmt: str, unit_text: str = "") -> str:
+    def _format_quantile_title(
+        value: float, plus: float, minus: float, fmt: str, unit_text: str = ""
+    ) -> str:
         formatted = format(value, fmt)
         if "e" not in formatted and "E" not in formatted:
             upper = format(plus, fmt)
@@ -315,7 +319,7 @@ def plot_posterior(
         lower = f"{minus / scale:.{decimals}f}"
         suffix = rf"\ {unit_text}" if unit_text else ""
         return rf"{center}^{{+{upper}}}_{{-{lower}}}\times 10^{{{exponent}}}{suffix}"
-    
+
     # Outline: solid for KDE, step for histogram (unchanged)
     if kde:
         ax.plot(ctr, hist, color="tab:blue", linewidth=1.0, zorder=-2)
@@ -323,48 +327,57 @@ def plot_posterior(
         ax.plot(ctr, hist, drawstyle="steps-mid", color="tab:blue", linewidth=1.2, zorder=-2)
 
     # Median & 16/84 lines from RAW samples (match corner/format_summary)
-    ax.axvline(q50, color="black", linestyle="-", linewidth=1.0,  label="Median")
+    ax.axvline(q50, color="black", linestyle="-", linewidth=1.0, label="Median")
     ax.axvline(q16, color="black", linestyle="--", linewidth=1.0, label="16th/84th Percentile")
     ax.axvline(q84, color="black", linestyle="--", linewidth=1.0)
-    
+
     # --- ETI shading (use RAW-sample equal-tail bounds, anchored exactly) ---
     bands = hdi if (hdi is not None) else (eti if eti is not None else ())
     bands = tuple(sorted(float(b) for b in bands))
     if len(bands) > 0:
         a_hi, a_lo = eti_alpha_range
         alphas = [a_hi] if len(bands) == 1 else np.linspace(a_hi, a_lo, num=len(bands))
-    
+
         # helper: raw-sample quantiles (same method as format_summary/corner)
         def _percentiles(arr, ps=(16.0, 50.0, 84.0), method="linear"):
             try:
                 return np.percentile(arr, ps, method=method)  # numpy >= 1.22
             except TypeError:
                 return np.percentile(arr, ps)
-    
+
         for frac, a in zip(bands, alphas):
             a = float(np.clip(a, 0.0, 1.0))
             tail = (1.0 - float(frac)) / 2.0
-            q_lo, q_hi = _percentiles(x, (100.0*tail, 100.0*(1.0 - tail)), method="linear")
-    
+            q_lo, q_hi = _percentiles(x, (100.0 * tail, 100.0 * (1.0 - tail)), method="linear")
+
             # interpolate density at the exact bounds so ETI edges align with the dashed lines
             y_lo = np.interp(q_lo, ctr, hist)
             y_hi = np.interp(q_hi, ctr, hist)
-    
+
             # build polygon that starts/ends precisely at those quantiles
             inside = (ctr >= q_lo) & (ctr <= q_hi)
             x_fill = np.concatenate(([q_lo], ctr[inside], [q_hi]))
             y_fill = np.concatenate(([y_lo], hist[inside], [y_hi]))
-    
-            ax.fill_between(x_fill, 0.0, y_fill,
-                            color=eti_color, alpha=a, label=f"{int(frac*100)}% ETI", zorder=-4)
+
+            ax.fill_between(
+                x_fill,
+                0.0,
+                y_fill,
+                color=eti_color,
+                alpha=a,
+                label=f"{int(frac*100)}% ETI",
+                zorder=-4,
+            )
 
     # Pretty x-label like corner (TeX label if provided)
     name = pretty_label or key
     unit_text = _latex_unit_str(unit, unit_label_overrides.get(key))
     xlabel = rf"${_axis_label(name, unit_text, logspace=log10)}$"
     ax.set_xlabel(xlabel, fontweight=("bold" if bold_labels else None), fontsize=fontsize)
-    ax.set_ylabel("Density", fontweight=("bold" if bold_labels else None), fontsize=fontsize) #  + (" [1/dex]" if log10 else "")
-    
+    ax.set_ylabel(
+        "Density", fontweight=("bold" if bold_labels else None), fontsize=fontsize
+    )  #  + (" [1/dex]" if log10 else "")
+
     # Corner-style numeric title from RAW-sample quantiles
     em, ep = (q50 - q16), (q84 - q50)
     if title is None:
@@ -381,15 +394,23 @@ def plot_posterior(
     if ymin_zero:
         top = ax.get_ylim()[1]
         ax.set_ylim(0.0, top)
-    ax.tick_params(axis="both", which="both", direction="in",
-                   top=True, right=True, labelsize=fontsize,
-                   length=tick_length, width=tick_width)
+    ax.tick_params(
+        axis="both",
+        which="both",
+        direction="in",
+        top=True,
+        right=True,
+        labelsize=fontsize,
+        length=tick_length,
+        width=tick_width,
+    )
     for sp in ax.spines.values():
         sp.set_linewidth(spine_linewidth)
     if show_legend:
         ax.legend(frameon=False, fontsize="small", borderpad=1.2)
 
     return ax
+
 
 def plot_ecdf(
     out,
@@ -452,8 +473,15 @@ def plot_ecdf(
     if log_keys is None:
         log_keys = keys if log10 else ()
 
-    mask = resolve_mask(out, mask=mask, keys=keys, log_keys=log_keys,
-                        default_key=key, default_log10=log10, use_active=True)
+    mask = resolve_mask(
+        out,
+        mask=mask,
+        keys=keys,
+        log_keys=log_keys,
+        default_key=key,
+        default_log10=log10,
+        use_active=True,
+    )
 
     arr = out["samples"][key]
     unit = arr.unit
@@ -493,7 +521,7 @@ def plot_ecdf(
                 text = base.to_string()
             text = text.strip("$")
             if text.startswith(r"\mathrm{") and text.endswith("}"):
-                text = text[len(r"\mathrm{"):-1]
+                text = text[len(r"\mathrm{") : -1]
             return text
 
         bases = getattr(unit, "bases", None)
@@ -504,7 +532,7 @@ def plot_ecdf(
             except Exception:
                 text = unit.to_string()
             if text.startswith(r"\mathrm{") and text.endswith("}"):
-                text = text[len(r"\mathrm{"):-1]
+                text = text[len(r"\mathrm{") : -1]
             return rf"\mathrm{{{text}}}"
 
         parts = []
@@ -533,21 +561,31 @@ def plot_ecdf(
         if unit_text:
             return (
                 rf"\mathbf{{{pretty}}}\,({unit_text})"
-                if bold_labels else
-                rf"{pretty}\,({unit_text})"
+                if bold_labels
+                else rf"{pretty}\,({unit_text})"
             )
         return rf"\mathbf{{{pretty}}}" if bold_labels else pretty
 
     name = pretty_label or key
     unit_text = _latex_unit_str(unit, unit_label_overrides.get(key))
-    ax.set_xlabel(rf"${_label(name, unit_text, logspace=log10)}$", fontweight=("bold" if bold_labels else None))
+    ax.set_xlabel(
+        rf"${_label(name, unit_text, logspace=log10)}$",
+        fontweight=("bold" if bold_labels else None),
+    )
     ax.set_ylabel("1 − F(x)" if ccdf else "F(x)", fontweight=("bold" if bold_labels else None))
     ax.set_title(rf"{'CCDF' if ccdf else 'ECDF'} of ${_label(name, unit_text, logspace=log10)}$")
 
     # Inward ticks & spine widths
-    ax.tick_params(axis="both", which="both", direction="in",
-                   top=True, right=True, labelsize=ticklabelsize,
-                   length=tick_length, width=tick_width)
+    ax.tick_params(
+        axis="both",
+        which="both",
+        direction="in",
+        top=True,
+        right=True,
+        labelsize=ticklabelsize,
+        length=tick_length,
+        width=tick_width,
+    )
     for sp in ax.spines.values():
         sp.set_linewidth(spine_linewidth)
 
@@ -562,7 +600,7 @@ def plot_corner(
     unit_overrides=None,
     unit_label_overrides=None,
     label_map=None,
-    max_points: Optional[int] = None,   # None = no subsampling
+    max_points: Optional[int] = None,  # None = no subsampling
     seed: int = 42,
     bins: int = 40,
     smooth: float = 1.0,
@@ -655,6 +693,7 @@ def plot_corner(
     idx = get_active_indices(out)
     if idx is None:
         idx = np.where(mask)[0]
+
     def _latex_unit_str(unit, label_override=None) -> str:
         if label_override is not None:
             text = str(label_override).strip("$")
@@ -676,7 +715,7 @@ def plot_corner(
                 text = base.to_string()
             text = text.strip("$")
             if text.startswith(r"\mathrm{") and text.endswith("}"):
-                text = text[len(r"\mathrm{"):-1]
+                text = text[len(r"\mathrm{") : -1]
             return text
 
         bases = getattr(unit, "bases", None)
@@ -687,7 +726,7 @@ def plot_corner(
             except Exception:
                 text = unit.to_string()
             if text.startswith(r"\mathrm{") and text.endswith("}"):
-                text = text[len(r"\mathrm{"):-1]
+                text = text[len(r"\mathrm{") : -1]
             return rf"\mathrm{{{text}}}"
 
         parts = []
@@ -726,8 +765,8 @@ def plot_corner(
         if unit_text:
             return (
                 rf"\mathbf{{{pretty}}}\,({unit_text})"
-                if bold_labels else
-                rf"{pretty}\,({unit_text})"
+                if bold_labels
+                else rf"{pretty}\,({unit_text})"
             )
         return rf"\mathbf{{{pretty}}}" if bold_labels else pretty
 
@@ -934,9 +973,13 @@ def plot_corner(
             continue
         i = spec.rowspan.start
         if i < data.shape[1]:
-            unit_text = "" if keys[i] in log_keys else _latex_unit_str(
-                units[keys[i]],
-                unit_label_overrides.get(keys[i]),
+            unit_text = (
+                ""
+                if keys[i] in log_keys
+                else _latex_unit_str(
+                    units[keys[i]],
+                    unit_label_overrides.get(keys[i]),
+                )
             )
             unit_text = _bold_math_text(unit_text)
             ax.set_title(
@@ -1010,7 +1053,15 @@ def plot_corner(
 
                 if source == "line":
                     drew = _fill_under_step_line(
-                        ax, xd, yd, qlo, qhi, color=shade_color, alpha=shade_alpha, zorder=z, scale=1.0
+                        ax,
+                        xd,
+                        yd,
+                        qlo,
+                        qhi,
+                        color=shade_color,
+                        alpha=shade_alpha,
+                        zorder=z,
+                        scale=1.0,
                     )
                 elif source == "patch":
                     drew = _fill_under_step_vertices(
@@ -1020,7 +1071,15 @@ def plot_corner(
                     x_step = edges
                     y_step = np.r_[hist, hist[-1]]
                     drew = _fill_under_step_line(
-                        ax, x_step, y_step, qlo, qhi, color=shade_color, alpha=shade_alpha, zorder=z, scale=1.0
+                        ax,
+                        x_step,
+                        y_step,
+                        qlo,
+                        qhi,
+                        color=shade_color,
+                        alpha=shade_alpha,
+                        zorder=z,
+                        scale=1.0,
                     )
 
     # Styling & compact spacing
