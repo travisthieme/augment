@@ -3,9 +3,8 @@ package:
   version: 0.1.0
 
 source:
-  # Update sha256 after creating the matching GitHub tag.
   url: https://github.com/travisthieme/augment/archive/refs/tags/v0.1.0.tar.gz
-  sha256: PUT_SHA256_HERE
+  sha256: db393de5be9ce6fe23ad57832b0a0029d089dc1da088505155280588450a5845
 
 build:
   number: 0
