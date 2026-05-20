@@ -23,7 +23,19 @@ The name stands for **A**symmetric **U**ncertainty propa**G**ation via
 
 ## Installation
 
-For development from a local checkout:
+Install the latest development version directly from GitHub:
+
+```bash
+pip install git+https://github.com/travisthieme/augment.git
+```
+
+Once the conda-forge package is available, install with:
+
+```bash
+conda install -c conda-forge augment
+```
+
+For local development from a checkout:
 
 ```bash
 python -m venv .venv
@@ -31,7 +43,7 @@ source .venv/bin/activate
 pip install -e .[dev]
 ```
 
-To include documentation dependencies:
+To include documentation dependencies during development:
 
 ```bash
 pip install -e .[dev,docs]
