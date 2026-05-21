@@ -581,8 +581,8 @@ def plot_ecdf(
 def plot_corner(
     out,
     *,
-    keys=("N_H2", "N_C18O", "N_DCOp", "N_H13COp", "n_H2", "zeta_CR"),
-    log_keys=("N_H2", "N_C18O", "N_DCOp", "N_H13COp", "n_H2", "zeta_CR"),
+    keys: Optional[Tuple[str, ...]] = None,
+    log_keys: Optional[Tuple[str, ...]] = None,
     unit_overrides=None,
     unit_label_overrides=None,
     label_map=None,
@@ -613,10 +613,12 @@ def plot_corner(
     ----------
     out : dict
         Result dict with "samples" (Astropy Quantities for each key).
-    keys : tuple of str
-        Variables to include (column order defines the grid).
-    log_keys : tuple of str
+    keys : tuple of str or None, optional
+        Variables to include (column order defines the grid). If None, all
+        keys in ``out["samples"]`` are plotted in insertion order.
+    log_keys : tuple of str or None, optional
         Subset of `keys` to be displayed in log10 space (positivity enforced).
+        If None, no variables are log-transformed.
     unit_overrides : dict, optional
         Mapping key -> unit to cast samples before plotting (if needed).
     unit_label_overrides : dict, optional
@@ -667,6 +669,14 @@ def plot_corner(
 
     rng = np.random.default_rng(seed)
     S = out["samples"]
+    if keys is None:
+        keys = tuple(S.keys())
+    else:
+        keys = tuple(keys)
+    if log_keys is None:
+        log_keys = ()
+    else:
+        log_keys = tuple(log_keys)
     label_map = label_map or {}
     unit_overrides = unit_overrides or {}
     unit_label_overrides = unit_label_overrides or {}
