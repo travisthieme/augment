@@ -274,14 +274,8 @@ def plot_posterior(
                 parts.append(rf"\mathrm{{{base_text}}}^{{{power}}}")
         return r"\,".join(parts)
 
-    def _bold_math_text(text: str) -> str:
-        if not bold_labels or not text:
-            return text
-        return text.replace(r"\mathrm{", r"\mathbf{")
-
     def _title_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
-            unit_text = _bold_math_text(unit_text)
             inner = rf"{pretty} / {unit_text}" if unit_text else pretty
             if bold_labels:
                 return rf"\mathbf{{log_{{10}}({inner})}}"
@@ -291,7 +285,6 @@ def plot_posterior(
     def _axis_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
             return _title_label(pretty, unit_text, logspace=True)
-        unit_text = _bold_math_text(unit_text)
         if unit_text:
             return (
                 rf"\mathbf{{{pretty}}}\,({unit_text})"
@@ -381,7 +374,7 @@ def plot_posterior(
     # Corner-style numeric title from RAW-sample quantiles
     em, ep = (q50 - q16), (q84 - q50)
     if title is None:
-        title_unit_text = "" if log10 else _bold_math_text(unit_text)
+        title_unit_text = "" if log10 else unit_text
         ax.set_title(
             rf"${_title_label(name, unit_text, logspace=log10)} = "
             rf"{_format_quantile_title(q50, ep, em, title_fmt, title_unit_text)}$",
@@ -545,19 +538,12 @@ def plot_ecdf(
                 parts.append(rf"\mathrm{{{base_text}}}^{{{power}}}")
         return r"\,".join(parts)
 
-    def _bold_math_text(text: str) -> str:
-        if not bold_labels or not text:
-            return text
-        return text.replace(r"\mathrm{", r"\mathbf{")
-
     def _label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
-            unit_text = _bold_math_text(unit_text)
             inner = rf"{pretty} / {unit_text}" if unit_text else pretty
             if bold_labels:
                 return rf"\mathbf{{log_{{10}}({inner})}}"
             return rf"\log_{{10}}({inner})"
-        unit_text = _bold_math_text(unit_text)
         if unit_text:
             return (
                 rf"\mathbf{{{pretty}}}\,({unit_text})"
@@ -739,14 +725,8 @@ def plot_corner(
                 parts.append(rf"\mathrm{{{base_text}}}^{{{power}}}")
         return r"\,".join(parts)
 
-    def _bold_math_text(text: str) -> str:
-        if not bold_labels or not text:
-            return text
-        return text.replace(r"\mathrm{", r"\mathbf{")
-
     def _title_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
-            unit_text = _bold_math_text(unit_text)
             if unit_text:
                 inner = rf"{pretty} / {unit_text}"
             else:
@@ -761,7 +741,6 @@ def plot_corner(
     def _axis_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
             return _title_label(pretty, unit_text, logspace=True)
-        unit_text = _bold_math_text(unit_text)
         if unit_text:
             return (
                 rf"\mathbf{{{pretty}}}\,({unit_text})"
@@ -981,7 +960,6 @@ def plot_corner(
                     unit_label_overrides.get(keys[i]),
                 )
             )
-            unit_text = _bold_math_text(unit_text)
             ax.set_title(
                 rf"${title_labels[i]} = {_format_quantile_title(data[:, i], title_fmt, unit_text)}$",
                 fontsize=fontsize,
