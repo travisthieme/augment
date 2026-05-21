@@ -738,11 +738,15 @@ def plot_corner(
     def _title_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
             if unit_text:
-                inner = rf"{pretty} / {unit_text}"
+                inner = (
+                    rf"\mathbf{{{pretty}}} / {unit_text}"
+                    if bold_labels
+                    else rf"{pretty} / {unit_text}"
+                )
             else:
-                inner = pretty
+                inner = rf"\mathbf{{{pretty}}}" if bold_labels else pretty
             if bold_labels:
-                return rf"\mathbf{{log_{{10}}({inner})}}"
+                return rf"\mathbf{{log}}_{{\mathbf{{10}}}}\mathbf{{(}}{inner}\mathbf{{)}}"
             return rf"\log_{{10}}({inner})"
         else:
             label = pretty
@@ -833,6 +837,8 @@ def plot_corner(
         upper = f"{plus / scale:.{decimals}f}"
         lower = f"{minus / scale:.{decimals}f}"
         suffix = rf"\ {unit_text}" if unit_text else ""
+        if exponent == 0:
+            return rf"{center}^{{+{upper}}}_{{-{lower}}}{suffix}"
         return rf"{center}^{{+{upper}}}_{{-{lower}}}\times 10^{{{exponent}}}{suffix}"
 
     fig = corner.corner(
