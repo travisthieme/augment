@@ -104,11 +104,7 @@ def _resolve_plot_range(data, plot_range=None, range_quantiles=None, *, label="d
 
 def _log_label(pretty: str, unit_text: str, *, bold_labels: bool) -> str:
     if unit_text:
-        inner = (
-            rf"\mathbf{{{pretty}}} / {unit_text}"
-            if bold_labels
-            else rf"{pretty} / {unit_text}"
-        )
+        inner = rf"\mathbf{{{pretty}}} / {unit_text}" if bold_labels else rf"{pretty} / {unit_text}"
     else:
         inner = rf"\mathbf{{{pretty}}}" if bold_labels else pretty
 
@@ -836,9 +832,7 @@ def plot_corner(
     if plot_range is None and range_quantiles is not None:
         plot_range = []
         for i in range(data.shape[1]):
-            plot_range.append(
-                _resolve_plot_range(data[:, i], None, range_quantiles, label=keys[i])
-            )
+            plot_range.append(_resolve_plot_range(data[:, i], None, range_quantiles, label=keys[i]))
 
     if isinstance(plot_range, dict):
         plot_range = [plot_range.get(k) for k in keys]
