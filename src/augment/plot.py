@@ -37,6 +37,8 @@ from .stats import resolve_mask, get_active_indices
 
 __all__ = ["plot_posterior", "plot_ecdf", "plot_corner"]
 
+_DEFAULT_RANGE_QUANTILES = (0.01, 0.99)
+
 
 def _as_vals(arr: Quantity):
     """
@@ -66,6 +68,55 @@ def _unit_slash_str(unit):
     return unit.to_string()
 
 
+def _resolve_plot_range(data, plot_range=None, range_quantiles=None, *, label="data"):
+    finite = np.asarray(data)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        raise ValueError(f"No finite plotted samples are available for {label!r}.")
+
+    if plot_range is not None:
+        try:
+            lo, hi = plot_range
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"plot_range for {label!r} must be a (min, max) pair.") from exc
+        if not (np.isfinite(lo) and np.isfinite(hi) and lo < hi):
+            raise ValueError(f"plot_range for {label!r} must be finite and ordered.")
+        in_range = (finite >= lo) & (finite <= hi)
+        if not np.any(in_range):
+            raise ValueError(
+                f"plot_range for {label!r} excludes all plotted samples. "
+                f"Got range=({lo:.6g}, {hi:.6g}), but sample span is "
+                f"({np.nanmin(finite):.6g}, {np.nanmax(finite):.6g})."
+            )
+        return (lo, hi)
+
+    if range_quantiles is None:
+        return None
+
+    qlo, qhi = range_quantiles
+    if not (0.0 <= qlo < qhi <= 1.0):
+        raise ValueError("range_quantiles must be in ascending order within [0, 1].")
+    lo, hi = np.nanquantile(finite, [qlo, qhi])
+    if not (np.isfinite(lo) and np.isfinite(hi)) or lo == hi:
+        return None
+    return (lo, hi)
+
+
+def _log_label(pretty: str, unit_text: str, *, bold_labels: bool) -> str:
+    if unit_text:
+        inner = (
+            rf"\mathbf{{{pretty}}} / {unit_text}"
+            if bold_labels
+            else rf"{pretty} / {unit_text}"
+        )
+    else:
+        inner = rf"\mathbf{{{pretty}}}" if bold_labels else pretty
+
+    if bold_labels:
+        return rf"\mathbf{{log}}_{{\mathbf{{10}}}}\mathbf{{(}}{inner}\mathbf{{)}}"
+    return rf"\log_{{10}}({inner})"
+
+
 def plot_posterior(
     out,
     *,
@@ -79,6 +130,8 @@ def plot_posterior(
     # viz controls
     ax=None,
     bins: int = 200,
+    plot_range: Optional[Tuple[float, float]] = None,
+    range_quantiles: Optional[Tuple[float, float]] = _DEFAULT_RANGE_QUANTILES,
     smooth_sigma: Optional[float] = None,  # used when kde=True
     # ETI / HDI shading
     eti: Optional[Tuple[float, ...]] = (0.68, 0.95),
@@ -131,6 +184,12 @@ def plot_posterior(
         Axes to draw on. If None, a new axes is created.
     bins : int, optional
         Number of histogram bins for the density estimation.
+    plot_range : (float, float), optional
+        Explicit x-axis range to use for the histogram and displayed limits.
+    range_quantiles : (float, float) or None, optional
+        If provided, compute the displayed x-axis range from these lower/upper
+        quantiles. Defaults to the central 98% to prevent rare tail draws from
+        flattening the visible posterior. Set to None to show the full span.
     smooth_sigma : float, optional
         Standard deviation (in *bin units*) of the Gaussian kernel used to
         smooth the histogram when `kde=True`. Ignored if `kde=False`.
@@ -200,15 +259,18 @@ def plot_posterior(
     unit = arr.unit
     v = arr.to_value(unit)[mask]
     x = np.log10(v) if log10 else v
+    x = x[np.isfinite(x)]
     if x.size == 0:
         raise ValueError("No samples to plot after masking (and log filtering).")
+
+    x_range = _resolve_plot_range(x, plot_range, range_quantiles, label=key)
 
     # Create axes if needed
     if ax is None:
         _, ax = plt.subplots()
 
     # Histogram density (normalized), then optional smoothing for KDE-like look
-    hist, edges = np.histogram(x, bins=int(bins), density=True)
+    hist, edges = np.histogram(x, bins=int(bins), density=True, range=x_range)
     ctr = 0.5 * (edges[:-1] + edges[1:])
     widths = np.diff(edges)
 
@@ -276,10 +338,7 @@ def plot_posterior(
 
     def _title_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
-            inner = rf"{pretty} / {unit_text}" if unit_text else pretty
-            if bold_labels:
-                return rf"\mathbf{{log_{{10}}({inner})}}"
-            return rf"\log_{{10}}({inner})"
+            return _log_label(pretty, unit_text, bold_labels=bold_labels)
         return rf"\mathbf{{{pretty}}}" if bold_labels else pretty
 
     def _axis_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
@@ -366,7 +425,7 @@ def plot_posterior(
     name = pretty_label or key
     unit_text = _latex_unit_str(unit, unit_label_overrides.get(key))
     xlabel = rf"${_axis_label(name, unit_text, logspace=log10)}$"
-    ax.set_xlabel(xlabel, fontweight=("bold" if bold_labels else None), fontsize=fontsize)
+    ax.set_xlabel(xlabel, fontsize=fontsize)
     ax.set_ylabel(
         "Density", fontweight=("bold" if bold_labels else None), fontsize=fontsize
     )  #  + (" [1/dex]" if log10 else "")
@@ -387,6 +446,8 @@ def plot_posterior(
     if ymin_zero:
         top = ax.get_ylim()[1]
         ax.set_ylim(0.0, top)
+    if x_range is not None:
+        ax.set_xlim(*x_range)
     ax.tick_params(
         axis="both",
         which="both",
@@ -540,10 +601,7 @@ def plot_ecdf(
 
     def _label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
-            inner = rf"{pretty} / {unit_text}" if unit_text else pretty
-            if bold_labels:
-                return rf"\mathbf{{log_{{10}}({inner})}}"
-            return rf"\log_{{10}}({inner})"
+            return _log_label(pretty, unit_text, bold_labels=bold_labels)
         if unit_text:
             return (
                 rf"\mathbf{{{pretty}}}\,({unit_text})"
@@ -556,7 +614,6 @@ def plot_ecdf(
     unit_text = _latex_unit_str(unit, unit_label_overrides.get(key))
     ax.set_xlabel(
         rf"${_label(name, unit_text, logspace=log10)}$",
-        fontweight=("bold" if bold_labels else None),
     )
     ax.set_ylabel("1 − F(x)" if ccdf else "F(x)", fontweight=("bold" if bold_labels else None))
     ax.set_title(rf"{'CCDF' if ccdf else 'ECDF'} of ${_label(name, unit_text, logspace=log10)}$")
@@ -592,7 +649,7 @@ def plot_corner(
     smooth: float = 1.0,
     mask: Optional[np.ndarray] = None,
     plot_range=None,
-    range_quantiles: Optional[Tuple[float, float]] = None,
+    range_quantiles: Optional[Tuple[float, float]] = _DEFAULT_RANGE_QUANTILES,
     title_fmt: str = ".2f",
     shade_quantile_band: bool = True,
     shade_quantiles: Tuple[float, float] = (0.16, 0.84),
@@ -640,9 +697,9 @@ def plot_corner(
         pair per key.
     range_quantiles : (float, float), optional
         If provided, compute `plot_range` from these lower/upper quantiles for
-        each plotted variable. For example, `(0.01, 0.99)` frames the central
-        98% of each marginal posterior and avoids long tails dominating the
-        panel limits.
+        each plotted variable. Defaults to `(0.01, 0.99)`, framing the central
+        98% of each marginal posterior so rare tail draws do not dominate the
+        panel limits. Set to None to show the full span.
     title_fmt : str, optional
         Format string for diagonal titles (corner’s native titles).
     shade_quantile_band : bool, optional
@@ -737,17 +794,7 @@ def plot_corner(
 
     def _title_label(pretty: str, unit_text: str, *, logspace: bool) -> str:
         if logspace:
-            if unit_text:
-                inner = (
-                    rf"\mathbf{{{pretty}}} / {unit_text}"
-                    if bold_labels
-                    else rf"{pretty} / {unit_text}"
-                )
-            else:
-                inner = rf"\mathbf{{{pretty}}}" if bold_labels else pretty
-            if bold_labels:
-                return rf"\mathbf{{log}}_{{\mathbf{{10}}}}\mathbf{{(}}{inner}\mathbf{{)}}"
-            return rf"\log_{{10}}({inner})"
+            return _log_label(pretty, unit_text, bold_labels=bold_labels)
         else:
             label = pretty
         return rf"\mathbf{{{label}}}" if bold_labels else label
@@ -779,16 +826,11 @@ def plot_corner(
     data = np.vstack(cols).T
 
     if plot_range is None and range_quantiles is not None:
-        qlo, qhi = range_quantiles
-        if not (0.0 <= qlo < qhi <= 1.0):
-            raise ValueError("range_quantiles must be in ascending order within [0, 1].")
         plot_range = []
         for i in range(data.shape[1]):
-            lo, hi = np.nanquantile(data[:, i], [qlo, qhi])
-            if not (np.isfinite(lo) and np.isfinite(hi)) or lo == hi:
-                plot_range.append(None)
-            else:
-                plot_range.append((lo, hi))
+            plot_range.append(
+                _resolve_plot_range(data[:, i], None, range_quantiles, label=keys[i])
+            )
 
     if isinstance(plot_range, dict):
         plot_range = [plot_range.get(k) for k in keys]
@@ -796,27 +838,17 @@ def plot_corner(
     if plot_range is not None:
         if len(plot_range) != len(keys):
             raise ValueError("plot_range must contain one range per key.")
+        plot_range = list(plot_range)
         for i, (k, rng_i) in enumerate(zip(keys, plot_range)):
             if rng_i is None:
                 continue
             try:
-                lo, hi = rng_i
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"plot_range for {k!r} must be a (min, max) pair.") from exc
-            if not (np.isfinite(lo) and np.isfinite(hi) and lo < hi):
-                raise ValueError(f"plot_range for {k!r} must be finite and ordered.")
-            col = data[:, i]
-            finite = col[np.isfinite(col)]
-            if finite.size == 0:
-                raise ValueError(f"No finite plotted samples are available for {k!r}.")
-            in_range = (finite >= lo) & (finite <= hi)
-            if not np.any(in_range):
+                plot_range[i] = _resolve_plot_range(data[:, i], rng_i, None, label=k)
+            except ValueError as exc:
                 transform = "log10 " if k in log_keys else ""
                 raise ValueError(
-                    f"plot_range for {k!r} excludes all plotted samples. "
-                    f"Got range=({lo:.6g}, {hi:.6g}), but {transform}sample span is "
-                    f"({np.nanmin(finite):.6g}, {np.nanmax(finite):.6g})."
-                )
+                    f"{exc} The plotted column contains {transform}sample values."
+                ) from exc
 
     def _format_quantile_title(x: np.ndarray, fmt: str, unit_text: str = "") -> str:
         q16, q50, q84 = np.nanpercentile(x, [16.0, 50.0, 84.0])
@@ -855,7 +887,7 @@ def plot_corner(
         plot_datapoints=False,
         fill_contours=True,
         contour_kwargs={"colors": "black", "linewidths": 0.8},
-        label_kwargs={"fontsize": fontsize, "fontweight": "bold" if bold_labels else "normal"},
+        label_kwargs={"fontsize": fontsize, "fontweight": "normal"},
         title_kwargs={"fontsize": fontsize},
     )
 
