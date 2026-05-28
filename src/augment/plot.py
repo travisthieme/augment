@@ -461,7 +461,7 @@ def plot_posterior(
     for sp in ax.spines.values():
         sp.set_linewidth(spine_linewidth)
     if show_legend:
-        ax.legend(frameon=False, fontsize="small", borderpad=1.2)
+        ax.legend(frameon=False, fontsize="small", borderpad=1.2, ncols=1)
 
     return ax
 
